@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 한의원 건강 컨설팅 (Q&A 분리)</title>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f8f5f0; 
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; 
+            min-height: 100vh;
+        }
+        .consult-container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 25px 30px;
+            width: 100%;
+            max-width: 750px; 
+            box-sizing: border-box;
+            border-top: 5px solid #5D4037; 
+        }
+        .step-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px dashed #e0e0e0; 
+            display: none; 
+        }
+        .step-section:nth-last-of-type(1), /* 마지막 step-section (Q&A) */
+        .step-section:nth-last-of-type(2) { /* 그 앞 step-section (결과) */
+            border-bottom: none;
+        }
+        .step-section.active {
+            display: block; 
+        }
+        h2.main-title { 
+            color: #3E2723; 
+            margin-top: 0;
+            margin-bottom: 25px; 
+            text-align: center;
+            font-size: 1.8em;
+            font-weight: 700;
+        }
+        h3.section-title { 
+            color: #4E342E; 
+            margin-top: 0;
+            margin-bottom: 20px; 
+            font-size: 1.4em;
+            font-weight: 500;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #8D6E63; 
+        }
+        .option-group { 
+            margin-bottom: 20px;
+        }
+        .option-group label.group-label { 
+            display: block;
+            margin-bottom: 12px; 
+            font-weight: 500;
+            color: #6D4C41; 
+            font-size: 1.05em;
+        }
+        .options-list { 
+            display: flex;
+            flex-direction: column;
+            gap: 10px; 
+        }
+        .options-list label {
+            background-color: #F5F5F5; 
+            padding: 12px 15px;
+            border-radius: 6px;
+            border: 1px solid #E0E0E0;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+            font-weight: normal; 
+            display: flex; 
+            align-items: center;
+            font-size: 0.95em;
+            color: #424242;
+        }
+        .options-list label:hover {
+            background-color: #E0E0E0;
+            border-color: #BDBDBD;
+        }
+        .options-list input[type="radio"], .options-list input[type="checkbox"] {
+            margin-right: 12px; 
+            width: auto;
+            flex-shrink: 0; 
+        }
+        input[type="text"], input[type="number"], select, textarea {
+            padding: 12px; 
+            border: 1px solid #BCAAA4; 
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 1em;
+            background-color: #FAFAFA;
+            color: #333;
+        }
+        textarea { min-height: 80px; }
+        button {
+            background-color: #6D4C41; 
+            color: white;
+            border: none;
+            padding: 12px 20px; 
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.05em;
+            font-weight: 500;
+            margin-top: 15px; 
+            transition: background-color 0.2s ease;
+        }
+        button:hover {
+            background-color: #4E342E; 
+        }
+        button.prev-btn {
+            background-color: #A1887F; 
+        }
+        button.prev-btn:hover {
+            background-color: #8D6E63;
+        }
+        .form-navigation { 
+            display: flex;
+            justify-content: space-between;
+            align-items: center; /* 버튼 세로 정렬 */
+            margin-top: 25px;
+        }
+        .form-navigation.center-button { /* 버튼 중앙 정렬용 */
+            justify-content: center;
+        }
+
+        #progress-indicator {
+            display: flex;
+            justify-content: space-around; /* 각 스텝 간격 동일하게 */
+            flex-wrap: wrap; /* 작은 화면에서 줄바꿈 허용 */
+            margin-bottom: 30px;
+            padding: 10px;
+            background-color: #ECEFF1;
+            border-radius: 8px;
+        }
+        .progress-step {
+            color: #78909C;
+            font-size: 0.85em; /* 글자 크기 약간 줄임 */
+            padding: 5px 8px; /* 패딩 약간 줄임 */
+            border-radius: 4px;
+            text-align: center;
+            flex-basis: 0; /* flex 아이템 기본 크기 0 */
+            flex-grow: 1; /* 가능한 공간 모두 차지 */
+            margin: 2px; /* 스텝 간 간격 */
+        }
+        .progress-step.active {
+            background-color: #5D4037;
+            color: white;
+            font-weight: bold;
+        }
+        
+        #results-section { display: none; } 
+        .results-content { 
+            background-color: #FFF8E1; 
+            border: 1px solid #FFECB3;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            margin-bottom: 20px; /* Q&A 버튼과의 간격 */
+        }
+        .results-content h4 {
+            color: #795548; 
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+            border-bottom: 1px solid #D7CCC8;
+            padding-bottom: 5px;
+        }
+        .results-content ul { list-style-type: disc; margin-left: 20px; padding-left: 0; }
+        .results-content li { margin-bottom: 8px; line-height: 1.6; }
+        .final-warning {
+            color: #BF360C; 
+            font-weight: bold;
+            margin-top: 20px; /* Q&A 버튼과의 간격 */
+            text-align: center;
+            font-size: 0.95em;
+            padding: 12px;
+            background-color: #FFCCBC;
+            border: 1px solid #FFAB91;
+            border-radius: 5px;
+        }
+
+        #qna-chatbot-interface { /* Q&A 챗봇 전체를 감싸는 div */
+            margin-top: 30px;
+            border-top: 3px solid #8D6E63; 
+            padding-top: 20px;
+        }
+        #qnaChatBox {
+            height: 350px; /* 높이 약간 증가 */
+            background-color: #F5F5F5; 
+            border: 1px solid #D7CCC8; 
+            border-radius: 5px;
+            padding: 15px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .qna-message {
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 85%; 
+            line-height: 1.5;
+            word-wrap: break-word;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .qna-user-message {
+            background-color: #A1887F; 
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+        .qna-bot-message {
+            background-color: #EFEBE9; 
+            color: #3E2723; 
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+        .qna-input-container { display: flex; padding: 10px 0; }
+        #qnaUserInput {
+            flex-grow: 1;
+            margin-right: 10px;
+            border-color: #BCAAA4; 
+        }
+        #qnaSendButton { background-color: #5D4037; font-size: 1em; }
+        #qnaDisclaimer {
+            font-size:0.85em; color:#757575; text-align:center; margin-top:10px;
+        }
+        #goToQnAPageButton { /* Q&A 시작 버튼 스타일 */
+            background-color: #4CAF50; 
+            display: block; 
+            padding: 15px 30px; 
+            font-size: 1.15em; /* 글자 크기 키움 */
+            width: auto; /* 내용에 맞게 */
+        }
+        #goToQnAPageButton:hover { background-color: #388E3C; }
+
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="consult-container">
+        <h2 class="main-title">나만의 건강 주치의 한의봇👩‍⚕️</h2>
+
+        <div id="progress-indicator">
+            <span class="progress-step active" data-step="0">기본정보</span>
+            <span class="progress-step" data-step="1">체질문진 ①</span>
+            <span class="progress-step" data-step="2">체질문진 ②</span>
+            <span class="progress-step" data-step="3">체질문진 ③</span>
+            <span class="progress-step" data-step="4">현재상태</span>
+            <span class="progress-step" data-step="5">생활습관</span>
+            <span class="progress-step" data-step="6">결과보기</span> <span class="progress-step" data-step="7">Q&A 상담</span> </div>
+
+        <div class="step-section active" id="step-0">
+            <h3 class="section-title">시작하기: 기본 정보 입력</h3>
+             <p style="background-color:#EFEBE9; padding:10px; border-radius:5px; margin-bottom:20px; font-size:0.9em;">
+                안녕하세요! 나만의 건강 주치의 한의봇😊입니다.<br>
+먼저 한의학 데이터에 기반한 간단한 건강 체크를 진행할게요.
+분석이 모두 끝나면, 결과를 보면서 무엇이든 자유롭게 물어보실 수 있어요.
+그럼, 준비되셨을 때 검사를 시작해주세요. 😊           </p>
+            <div class="option-group">
+                <label class="group-label" for="gender">성별을 선택해주세요:</label>
+                <select id="gender" style="padding:10px; width: auto; min-width: 150px;">
+                    <option value="">선택</option>
+                    <option value="male">남성</option>
+                    <option value="female">여성</option>
+                </select>
+            </div>
+            <div class="option-group">
+                <label class="group-label" for="age">만 나이를 입력해주세요:</label>
+                <input type="number" id="age" min="1" max="120" placeholder="예: 35">
+            </div>
+            <div class="form-navigation">
+                <span></span>
+                <button onclick="nextStep(0)">다음 단계로</button>
+            </div>
+        </div>
+
+        <div class="step-section" id="step-1">
+            <h3 class="section-title">체질 문진 (1/3)</h3>
+            <div class="option-group">
+                <label class="group-label">1. 전체적인 체격과 인상은 어떻습니까?</label>
+                <div class="options-list">
+                    <label><input type="radio" name="sq_1" value="TE">골격이 크고 체격이 다부지며, 안정감 있는 인상이다.</label>
+                    <label><input type="radio" name="sq_1" value="SE">체구가 작고 아담하며, 다소 약해 보이거나 부드러운 인상이다.</label>
+                    <label><input type="radio" name="sq_1" value="SY">상체가 발달하고 날렵해 보이며, 민첩하고 예리한 인상이다.</label>
+                    <label><input type="radio" name="sq_1" value="TY">상체가 발달하고 위엄 있어 보이나, 하체가 다소 빈약해 보인다.</label>
+                </div>
+            </div>
+            <div class="option-group">
+                <label class="group-label">2. 얼굴 모양과 이목구비는 어떤 편입니까?</label>
+                <div class="options-list">
+                    <label><input type="radio" name="sq_2" value="TE">얼굴이 둥글거나 넓적하며, 이목구비가 크고 뚜렷한 편이다.</label>
+                    <label><input type="radio" name="sq_2" value="SE">얼굴이 갸름하거나 계란형이며, 이목구비가 오밀조밀하고 섬세한 편이다.</label>
+                    <label><input type="radio" name="sq_2" value="SY">얼굴이 다소 길거나 역삼각형이며, 눈매가 올라가고 코가 날카로운 편이다.</label>
+                    <label><input type="radio" name="sq_2" value="TY">이마가 넓고 눈빛이 강하며, 전체적으로 선이 굵고 강한 인상을 준다.</label>
+                </div>
+            </div>
+             <div class="option-group">
+                <label class="group-label">3. 평소 말과 행동은 어떤 편입니까?</label>
+                <div class="options-list">
+                    <label><input type="radio" name="sq_3" value="TE">말수가 적고 행동이 신중하며, 과묵하고 믿음직스럽다.</label>
+                    <label><input type="radio" name="sq_3" value="SE">말이 조용하고 부드러우며, 행동이 차분하고 조심스럽다.</label>
+                    <label><input type="radio" name="sq_3" value="SY">말이 빠르고 명쾌하며, 행동이 민첩하고 활발하다.</label>
+                    <label><input type="radio" name="sq_3" value="TY">말에 권위가 있고 직선적이며, 행동이 적극적이고 주도적이다.</label>
+                </div>
+            </div>
+            <div class="form-navigation">
+                <button class="prev-btn" onclick="prevStep(1)">이전 단계로</button>
+                <button onclick="nextStep(1)">다음 단계로</button>
+            </div>
+        </div>
+        
+        <div class="step-section" id="step-2">
+            <h3 class="section-title">체질 문진 (2/3)</h3>
+             <div class="option-group">
+                <label class="group-label">4. 스트레스를 받을 때 주로 어떻게 반응합니까?</label>
+                <div class="options-list">
+                    <label><input type="radio" name="sq_4" value="TE">속으로 삭이거나, 시간이 지나면 잊으려고 노력한다.</label>
+                    <label><input type="radio" name="sq_4" value="SE">불안해하거나 걱정이 많아지며, 쉽게 잠을 이루지 못한다.</label>
+                    <label><input type="radio" name="sq_4" value="SY">화를 내거나 짜증을 내며, 감정을 즉각적으로 표현한다.</label>
+                    <label><input type="radio" name="sq_4" value="TY">상황을 분석하고 해결하려 하며, 때로는 독단적으로 행동할 수 있다.</label>
+                </div>
+            </div>
+            <div class="option-group">
+                <label class="group-label">5. 평소 소화 상태와 식욕은 어떻습니까?</label>
+                <div class="options-list">
+                    <label><input type="radio" name="sq_5" value="TE">소화력이 좋고 식욕이 왕성하며, 과식하는 경향이 있다.</label>
+                    <label><input type="radio" name="sq_5" value="SE">소화기가 약하고 식욕이 적은 편이며, 찬 음식을 먹으면 불편하다.</label>
+                    <label><input type="radio" name="sq_5" value="SY">소화는 잘 되나, 급하게 먹는 편이고, 매운 음식을 즐겨 찾는다.</label>
+                    <label><input type="radio" name="sq_5" value="TY">소화에 큰 문제는 없으나, 기름진 음식은 부담스러울 수 있다.</label>
+                </div>
+            </div>
+            <div class="option-group">
+                <label class="group-label">6. 배변 습관은 어떤 편입니까?</label>
+                <div class="options-list">
+                    <label><input type="radio" name="sq_6" value="TE">대변이 무르고 양이 많은 편이거나, 변비와 설사가 번갈아 나타날 수 있다.</label>
+                    <label><input type="radio" name="sq_6" value="SE">대변이 가늘거나 무르며, 신경 쓰면 변비나 설사가 생기기 쉽다.</label>
+                    <label><input type="radio" name="sq_6" value="SY">대변이 시원하게 나오나, 열이 많으면 변비가 생기기 쉽다.</label>
+                    <label><input type="radio" name="sq_6" value="TY">대변은 보통이나, 몸 상태에 따라 변화가 있을 수 있다.</label>
+                </div>
+            </div>
+            <div class="form-navigation">
+                <button class="prev-btn" onclick="prevStep(2)">이전 단계로</button>
+                <button onclick="nextStep(2)">다음 단계로</button>
+            </div>
+        </div>
+
+        <div class="step-section" id="step-3">
+            <h3 class="section-title">체질 문진 (3/3)</h3>
+            <div class="option-group">
+                <label class="group-label">7. 평소 땀은 어느 정도로 흘리십니까?</label>
+                <div class="options-list">
+                    <label><input type="radio" name="sq_7" value="TE">땀이 많은 편이고, 건강할 때 땀이 잘 나면 몸이 가볍다.</label>
+                    <label><input type="radio" name="sq_7" value="SE">땀이 거의 없고, 땀을 많이 흘리면 쉽게 지친다.</label>
+                    <label><input type="radio" name="sq_7" value="SY">더위를 많이 타지만, 땀은 생각보다 많지 않거나 특정 부위에만 난다.</label>
+                    <label><input type="radio" name="sq_7" value="TY">땀이 적은 편이나, 정신적 긴장 시에 땀이 날 수 있다.</label>
+                </div>
+            </div>
+            <div class="option-group">
+                <label class="group-label">8. 추위와 더위 중 어느 것을 더 타는 편입니까?</label>
+                <div class="options-list">
+                    <label><input type="radio" name="sq_8" value="TE">더위보다는 추위를 더 못 견디는 편이다.</label>
+                    <label><input type="radio" name="sq_8" value="SE">추위를 많이 타고, 손발이 찬 경우가 많다.</label>
+                    <label><input type="radio" name="sq_8" value="SY">더위를 많이 타고, 시원한 것을 좋아한다.</label>
+                    <label><input type="radio" name="sq_8" value="TY">더위보다는 추위에 강한 편이다.</label>
+                </div>
+            </div>
+             <div class="option-group">
+                <label class="group-label">9. 건강이 좋지 않을 때 주로 어떤 증상이 나타납니까?</label>
+                <div class="options-list">
+                    <label><input type="radio" name="sq_9" value="TE">호흡기(기침, 가래)나 순환기(고혈압, 중풍) 계통의 문제가 생기기 쉽다.</label>
+                    <label><input type="radio" name="sq_9" value="SE">소화기(소화불량, 설사)나 신경성 질환(불안, 불면)이 생기기 쉽다.</label>
+                    <label><input type="radio" name="sq_9" value="SY">비뇨생식기(방광염, 요통)나 열성 질환(두통, 피부 발진)이 생기기 쉽다.</label>
+                    <label><input type="radio" name="sq_9" value="TY">구토나 식도 역류 등 상부 소화기 문제나, 하체 무력감이 생기기 쉽다.</label>
+                </div>
+            </div>
+             <div class="option-group">
+                <label class="group-label">10. 평소 자주 느끼는 불편감이나 약한 부위는 어디입니까?</label>
+                <div class="options-list">
+                    <label><input type="radio" name="sq_10" value="TE">배가 더부룩하거나, 피부 질환이 잘 생긴다.</label>
+                    <label><input type="radio" name="sq_10" value="SE">손발이 차고, 기운이 없으며, 추위를 잘 탄다.</label>
+                    <label><input type="radio" name="sq_10" value="SY">가슴이 답답하거나, 옆구리가 결리고, 변비 경향이 있다.</label>
+                    <label><input type="radio" name="sq_10" value="TY">목덜미가 뻣뻣하거나, 다리에 힘이 없고, 구역질이 잘 난다.</label>
+                </div>
+            </div>
+            <div class="form-navigation">
+                <button class="prev-btn" onclick="prevStep(3)">이전 단계로</button>
+                <button onclick="nextStep(3)">다음 단계로</button>
+            </div>
+        </div>
+        
+        <div class="step-section" id="step-4">
+            <h3 class="section-title">현재 건강 상태</h3>
+            <div class="option-group multi-choice">
+                <label class="group-label">현재 가장 불편하거나 자주 겪는 증상을 모두 선택해주세요 (중복 가능):</label>
+                <div class="options-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    <label><input type="checkbox" name="symptom" value="만성 피로">만성 피로</label>
+                    <label><input type="checkbox" name="symptom" value="소화 불량">소화 불량/속쓰림</label>
+                    <label><input type="checkbox" name="symptom" value="두통">잦은 두통</label>
+                    <label><input type="checkbox" name="symptom" value="수면 장애">수면 장애 (불면/과다수면)</label>
+                    <label><input type="checkbox" name="symptom" value="근골격계 통증">어깨/목 결림, 요통</label>
+                    <label><input type="checkbox" name="symptom" value="배변 문제">변비/설사</label>
+                    <label><input type="checkbox" name="symptom" value="피부 문제">피부 트러블 (가려움, 발진 등)</label>
+                    <label><input type="checkbox" name="symptom" value="감기 증상">잦은 감기, 비염</label>
+                    <label><input type="checkbox" name="symptom" value="부종">부종 (얼굴, 손발 등)</label>
+                    <label><input type="checkbox" name="symptom" value="심리적 문제">스트레스, 불안, 우울감</label>
+                </div>
+            </div>
+            <div class="option-group">
+                 <label class="group-label" for="other_symptoms">기타 불편한 증상이나 특별히 상담하고 싶은 내용이 있다면 자세히 적어주세요:</label>
+                 <textarea id="other_symptoms" rows="3" placeholder="예) 최근 3개월 전부터 아침에 일어날 때 손가락 마디가 뻣뻣하고, 오후가 되면 괜찮아집니다."></textarea>
+            </div>
+            <div class="form-navigation">
+                <button class="prev-btn" onclick="prevStep(4)">이전 단계로</button>
+                <button onclick="nextStep(4)">다음 단계로</button>
+            </div>
+        </div>
+
+        <div class="step-section" id="step-5">
+            <h3 class="section-title">생활 습관 점검</h3>
+            <div class="option-group">
+                <label class="group-label" for="sleep_hours">하루 평균 수면 시간은 어느 정도 되시나요?</label>
+                <div class="slider-container">
+                    <input type="range" id="sleep_hours" name="sleep_hours_range" min="3" max="10" value="7" step="0.5" oninput="document.getElementById('sleep_value_display').textContent = this.value;">
+                    <span id="sleep_value_display" class="slider-value">7</span> 시간
+                </div>
+            </div>
+            <div class="option-group">
+                <label class="group-label">식사는 규칙적으로 하시는 편인가요?</label>
+                <div class="options-list">
+                    <label><input type="radio" name="regular_meals" value="매우 규칙적">매우 규칙적 (정해진 시간에 잘 챙겨 먹음)</label>
+                    <label><input type="radio" name="regular_meals" value="대체로 규칙적">대체로 규칙적 (가끔 불규칙)</label>
+                    <label><input type="radio" name="regular_meals" value="불규칙적">불규칙적 (자주 거르거나 시간이 일정치 않음)</label>
+                    <label><input type="radio" name="regular_meals" value="매우 불규칙적">매우 불규칙적 (식사 시간이 거의 없음)</label>
+                </div>
+            </div>
+             <div class="option-group">
+                <label class="group-label">일주일에 30분 이상 운동하시는 횟수는 어느 정도인가요?</label>
+                <div class="options-list">
+                    <label><input type="radio" name="exercise_freq" value="거의 안함">거의 안함 (월 1회 미만)</label>
+                    <label><input type="radio" name="exercise_freq" value="주 1-2회">주 1-2회</label>
+                    <label><input type="radio" name="exercise_freq" value="주 3-4회">주 3-4회</label>
+                    <label><input type="radio" name="exercise_freq" value="주 5회 이상">주 5회 이상</label>
+                </div>
+            </div>
+             <div class="option-group">
+                <label class="group-label" for="stress_level">최근 한 달간 느끼는 스트레스 수준은 어느 정도인가요? (1: 매우 낮음 ~ 10: 매우 높음)</label>
+                <div class="slider-container">
+                     <input type="range" id="stress_level" name="stress_level_range" min="1" max="10" value="5" step="1" oninput="document.getElementById('stress_value_display').textContent = this.value;">
+                     <span id="stress_value_display" class="slider-value">5</span> 점
+                </div>
+            </div>
+            <div class="form-navigation">
+                <button class="prev-btn" onclick="prevStep(5)">이전 단계로</button>
+                <button onclick="processAndShowResults()">컨설팅 결과보기</button> </div>
+        </div>
+        
+        <div class="step-section" id="step-6"> 
+            <h3 class="section-title">AI 건강 컨설팅 결과</h3>
+            <div class="results-content">
+                <h4>환자님 기본 정보</h4>
+                <p id="result_basic_info"></p>
+                <h4>사상체질 분석 (예비)</h4>
+                <p id="result_sasang_type"></p>
+                <p id="result_sasang_desc" style="font-size:0.95em; color:#555;"></p>
+                <h4>현재 건강 상태 요약</h4>
+                <p id="result_symptoms"></p>
+                <h4>생활 습관 분석 요약</h4>
+                <p id="result_lifestyle"></p>
+                <h4>종합 건강 컨설팅</h4>
+                <div id="result_general_advice"></div>
+                <h4>체질 맞춤 상세 컨설팅</h4>
+                <div id="result_custom_advice"></div>
+            </div>
+            <p class="final-warning">본 AI 컨설팅은 의학적인 진단이나 치료를 대체할 수 없습니다. 건강에 대한 정확한 판단과 치료는 반드시 전문 의료기관을 방문하여 의사 또는 한의사와 상담하시기 바랍니다.</p>
+            
+            <div class="form-navigation center-button"> <button id="goToQnAPageButton">AI 건강 Q&A 시작하기</button>
+            </div>
+            <div class="form-navigation" style="margin-top:10px;">
+                 <button class="prev-btn" onclick="prevStep(6)">이전 (생활습관으로)</button>
+                 <button onclick="restartConsult()">처음부터 다시 시작</button>
+            </div>
+        </div>
+
+        <div class="step-section" id="step-7">
+            <h3 class="section-title">AI 건강 Q&A 상담실</h3>
+            <div id="qna-chatbot-interface"> 
+                <div class="chat-box" id="qnaChatBox">
+                    </div>
+                <div class="qna-input-container">
+                    <input type="text" id="qnaUserInput" placeholder="건강 관련 질문을 입력하세요...">
+                    <button id="qnaSendButton">질문하기</button>
+                </div>
+                <p id="qnaDisclaimer">본 Q&A는 일반적인 건강 정보를 제공하며, 의학적 진단이나 처방을 대체할 수 없습니다.</p>
+            </div>
+            <div class="form-navigation">
+                <button class="prev-btn" onclick="prevStep(7)">컨설팅 결과 다시보기</button>
+                <button onclick="restartConsult()">처음부터 다시 시작</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+    // --- 전역 오류 핸들러 ---
+    window.onerror = function(message, source, lineno, colno, error) {
+        alert(`죄송합니다. 페이지에 오류가 발생했습니다:\n메시지: ${message}\n소스: ${source} (줄: ${lineno})`);
+        console.error("전역 오류:", { message, source, lineno, colno, error });
+        return true; 
+    };
+    // alert("AI 한의원 건강 컨설팅 시스템이 로드되었습니다."); // DOMContentLoaded에서 안내
+
+    try { 
+        console.log("SCRIPT START: Main logic initializing...");
+
+        const sections = Array.from(document.querySelectorAll('.consult-container > .step-section'));
+        const progressSteps = Array.from(document.querySelectorAll('#progress-indicator > .progress-step'));
+        let currentStep = 0; // 현재 활성화된 단계의 인덱스 (0부터 시작)
+        let diagnosedSasangType = null; 
+        let collectedUserData = {}; 
+
+        let qnaChatBox, qnaUserInput, qnaSendButton, goToQnAPageButton; 
+
+        const GEMINI_API_KEY = "AIzaSyBuKOj0HLgoQf3J5pQbkq0yBj21Ru5uCA0"; // <--- 사용자의 Gemini API 키 입력 공간
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+        const sasangQuestionIds = ['sq_1', 'sq_2', 'sq_3', 'sq_4', 'sq_5', 'sq_6', 'sq_7', 'sq_8', 'sq_9', 'sq_10'];
+        const sasangWeights = { 
+            sq_1: { TE: 2, SE: 1, SY: 1, TY: 1 }, sq_2: { TE: 2, SE: 1, SY: 1, TY: 2 },
+            sq_3: { TE: 2, SE: 1, SY: 1, TY: 1 }, sq_4: { TE: 1, SE: 2, SY: 2, TY: 1 },
+            sq_5: { TE: 2, SE: 2, SY: 1, TY: 1 }, sq_6: { TE: 1, SE: 1, SY: 2, TY: 0 },
+            sq_7: { TE: 2, SE: 2, SY: 1, TY: 1 }, sq_8: { TE: 1, SE: 2, SY: 2, TY: 1 },
+            sq_9: { TE: 2, SE: 2, SY: 1, TY: 2 }, sq_10: { TE: 1, SE: 2, SY: 2, TY: 1 }
+        };
+
+        function updateProgressIndicator() {
+            // console.log("Updating progress indicator for step: ", currentStep);
+            if (!progressSteps || progressSteps.length === 0) return;
+            progressSteps.forEach((stepEl, index) => {
+                // data-step 값은 0부터 시작하는 반면, currentStep도 0부터 시작
+                // HTML의 data-step과 currentStep을 직접 비교
+                if(stepEl) stepEl.classList.toggle('active', parseInt(stepEl.dataset.step) === currentStep);
+            });
+        }
+
+        function displayStep(stepIndexToShow) {
+            // console.log(`Displaying step: ${stepIndexToShow}`);
+            if (!sections || sections.length === 0) { return; }
+            sections.forEach((section, index) => {
+                if(section) section.classList.toggle('active', index === stepIndexToShow);
+            });
+            currentStep = stepIndexToShow;
+            updateProgressIndicator();
+            window.scrollTo(0, 0); 
+        }
+
+        function validateStep(stepIndexToValidate) {
+            // console.log(`Validating step ${stepIndexToValidate}`);
+            try {
+                if (stepIndexToValidate === 0) { 
+                    const gender = document.getElementById('gender').value;
+                    const age = document.getElementById('age').value;
+                    if (!gender) { alert('환자분의 성별을 선택해주십시오.'); return false; }
+                    if (!age) { alert('환자분의 만 나이를 입력해주십시오.'); return false; }
+                    const ageNum = parseInt(age);
+                    if (isNaN(ageNum) || ageNum <= 0 || ageNum > 120) {
+                        alert('만 나이는 1세부터 120세 사이의 유효한 숫자로 입력해주십시오.'); return false;
+                    }
+                } else if (stepIndexToValidate >= 1 && stepIndexToValidate <=3) { 
+                    let questionsToCheck = [];
+                    if (stepIndexToValidate === 1) questionsToCheck = ['sq_1', 'sq_2', 'sq_3'];
+                    if (stepIndexToValidate === 2) questionsToCheck = ['sq_4', 'sq_5', 'sq_6'];
+                    if (stepIndexToValidate === 3) questionsToCheck = ['sq_7', 'sq_8', 'sq_9', 'sq_10'];
+                    
+                    for (const qId of questionsToCheck) {
+                        if (!document.querySelector(`input[name="${qId}"]:checked`)) {
+                            alert(`체질 문진 ${qId.split('_')[1]}번 항목에 답변해주시면 진단에 도움이 됩니다.`); return false;
+                        }
+                    }
+                } else if (stepIndexToValidate === 5) { // 생활습관 페이지 유효성 검사
+                     if (!document.querySelector('input[name="regular_meals"]:checked')) { alert('평소 식습관의 규칙성을 선택해주십시오.'); return false;}
+                     if (!document.querySelector('input[name="exercise_freq"]:checked')) { alert('평소 주간 운동 횟수를 선택해주십시오.'); return false;}
+                }
+                return true;
+            } catch(e) {
+                alert(`정보 확인 중 오류 (${stepIndexToValidate}단계): ${e.message}`);
+                console.error(`Error in validateStep for step ${stepIndexToValidate}:`, e);
+                return false;
+            }
+        }
+
+        function nextStep(currentStepIndex) {
+            if (!validateStep(currentStepIndex)) { return; }
+             // sections.length -1 은 결과&QnA 섹션(step-6)을 가리킴. 
+             // step-7 (새로운 Q&A 전용)으로 가려면 sections.length는 8이어야 함. (인덱스 0~7)
+            if (currentStepIndex < sections.length - 2) { // 결과보기 및 Q&A 전용 페이지 이전까지
+                displayStep(currentStepIndex + 1);
+            } else {
+                console.warn("nextStep: Already at or before the results/Q&A step. Use showResultsAndQnA or specific navigation.");
+            }
+        }
+
+        function prevStep(currentStepIndex) {
+            if (currentStepIndex > 0) {
+                displayStep(currentStepIndex - 1);
+            }
+        }
+        
+        function collectData() { /* 이전과 동일 */
+            const data = {};
+            try {
+                data.gender = document.getElementById('gender').value;
+                data.age = document.getElementById('age').value;
+                sasangQuestionIds.forEach(id => {
+                    const selected = document.querySelector(`input[name="${id}"]:checked`);
+                    data[id] = selected ? selected.value : null;
+                });
+                data.symptoms = [];
+                document.querySelectorAll('input[name="symptom"]:checked').forEach(cb => data.symptoms.push(cb.value));
+                data.other_symptoms = document.getElementById('other_symptoms').value.trim();
+                data.sleep_hours = document.getElementById('sleep_hours').value;
+                const regularMealsEl = document.querySelector('input[name="regular_meals"]:checked');
+                data.regular_meals = regularMealsEl ? regularMealsEl.value : "응답 없음";
+                const exerciseFreqEl = document.querySelector('input[name="exercise_freq"]:checked');
+                data.exercise_freq = exerciseFreqEl ? exerciseFreqEl.value : "응답 없음";
+                data.stress_level = document.getElementById('stress_level').value;
+            } catch (e) { console.error("Error in collectData:", e); }
+            return data;
+        }
+        
+        function escapeHtml(unsafe) { /* 이전과 동일 */
+            if (typeof unsafe !== 'string') return '';
+            return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function processAndShowResults() { // 함수 이름 변경
+            if (!validateStep(5)) { return; } // step-5 (생활습관) 유효성 검사
+            alert('모든 문항에 답변해주셨습니다. 잠시 후 컨설팅 결과를 준비해드리겠습니다.');
+            
+            try {
+                collectedUserData = collectData(); 
+
+                const sasangScores = { TE: 0, SE: 0, SY: 0, TY: 0 };
+                sasangQuestionIds.forEach(id => {
+                    const userAnswerType = collectedUserData[id]; 
+                    if (userAnswerType && sasangWeights[id] && sasangWeights[id][userAnswerType] !== undefined) {
+                        sasangScores[userAnswerType] += sasangWeights[id][userAnswerType];
+                    } else if (userAnswerType && ["TE", "SE", "SY", "TY"].includes(userAnswerType)) {
+                        if(sasangWeights[id] && sasangWeights[id][userAnswerType] === undefined){
+                            sasangScores[userAnswerType] += 1; 
+                        }
+                    }
+                });
+
+                let maxScore = 0;
+                let finalSasangTypes = [];
+                for (const type in sasangScores) {
+                    if (sasangScores[type] > maxScore) {
+                        maxScore = sasangScores[type];
+                        finalSasangTypes = [type];
+                    } else if (sasangScores[type] === maxScore && maxScore > 0) {
+                        finalSasangTypes.push(type);
+                    }
+                }
+                
+                diagnosedSasangType = (finalSasangTypes.length === 1 && maxScore > 2) ? finalSasangTypes[0] : null;
+
+                let sasangResultText = "";
+                let sasangDescText = "";
+                if (maxScore <= 2 || finalSasangTypes.length === 0) { 
+                     sasangResultText = "<strong>판단 보류 또는 복합 체질 가능성</strong>";
+                     sasangDescText = "입력해주신 정보만으로는 명확한 사상체질을 판단하기 어렵습니다. 각 체질의 특징이 복합적으로 나타나거나, 정보가 부족할 수 있습니다. 보다 정확한 진단은 한의사와 상담해주세요.";
+                } else if (finalSasangTypes.length === 1) {
+                    sasangResultText = `환자분께서는 <strong>${finalSasangTypes[0]}</strong>의 경향성이 높게 나타납니다. (예상 점수: ${maxScore})`;
+                    if (finalSasangTypes[0] === "TY" && maxScore <= 4) { 
+                        sasangResultText += "<br><small>(단, 태양인은 발생 빈도가 매우 낮은 체질로 알려져 있으며, 현재 정보만으로는 확신하기 어렵습니다. 전문가의 정밀한 진단이 필요합니다.)</small>";
+                    }
+                    if (finalSasangTypes[0] === "TE") sasangDescText = "태음인은 일반적으로 체격이 좋고 성격이 꾸준하며, 간(肝) 기능이 강하고 폐(肺) 기능이 약한 경향이 있습니다. 순환기계 질환이나 대사 증후군에 주의할 필요가 있습니다.";
+                    else if (finalSasangTypes[0] === "SE") sasangDescText = "소음인은 소화기가 약하고 내성적이며 꼼꼼한 성향을 보입니다. 신장(腎) 기능이 강하고 비위(脾胃) 기능이 약한 경향이 있어, 소화불량이나 냉증에 주의해야 합니다.";
+                    else if (finalSasangTypes[0] === "SY") sasangDescText = "소양인은 상체가 발달하고 성격이 활발하며 솔직합니다. 비위(脾胃) 기능이 강하고 신장(腎) 기능이 약한 경향이 있어, 몸에 열이 많고 변비나 비뇨기계 질환에 주의가 필요합니다.";
+                    else if (finalSasangTypes[0] === "TY") sasangDescText = "태양인은 폐(肺) 기능이 강하고 간(肝) 기능이 약하며, 상체가 발달하고 진취적인 기상이 특징입니다. 소화기 질환이나 하체 약화에 주의해야 합니다.";
+
+                } else { 
+                    sasangResultText = `환자분께서는 <strong>${finalSasangTypes.join(' 또는 ')} 복합 경향</strong>을 보이십니다. (각 예상 점수: ${maxScore})`;
+                    sasangDescText = "여러 체질의 특징을 함께 가지고 계실 가능성이 있습니다. 각 체질의 장점을 고루 갖추었거나, 혹은 특정 체질의 약점을 다른 체질의 특성이 보완해주는 형태로 나타날 수 있습니다. 자세한 사항은 전문가와 상담하시는 것이 좋습니다.";
+                }
+
+                document.getElementById('result_basic_info').innerHTML = `<strong>성별:</strong> ${collectedUserData.gender === 'male' ? '남성' : '여성'}, <strong>나이:</strong> 만 ${collectedUserData.age}세`;
+                document.getElementById('result_sasang_type').innerHTML = sasangResultText;
+                document.getElementById('result_sasang_desc').innerHTML = `<p>${sasangDescText}</p>`;
+
+                let symptomsOutput = "특별히 호소하는 증상은 없으신 것으로 보입니다.";
+                let collectedSymptoms = [];
+                if (collectedUserData.symptoms && collectedUserData.symptoms.length > 0) {
+                    collectedSymptoms = Array.isArray(collectedUserData.symptoms) ? collectedUserData.symptoms : [collectedUserData.symptoms];
+                }
+                if (collectedUserData.other_symptoms && collectedUserData.other_symptoms.toLowerCase() !== '없음' && collectedUserData.other_symptoms.length > 0) {
+                    collectedSymptoms.push(`기타 특이사항: ${escapeHtml(collectedUserData.other_symptoms)}`);
+                }
+                if(collectedSymptoms.length > 0) {
+                     symptomsOutput = "<strong>현재 주로 불편감을 느끼시는 부분:</strong> " + collectedSymptoms.join(', ');
+                }
+                document.getElementById('result_symptoms').innerHTML = symptomsOutput;
+
+                let lifestyleOutput = `<ul>
+                    <li><strong>수면:</strong> 하루 평균 ${collectedUserData.sleep_hours}시간</li>
+                    <li><strong>식습관 규칙성:</strong> ${collectedUserData.regular_meals}</li>
+                    <li><strong>주간 운동 횟수:</strong> ${collectedUserData.exercise_freq}</li>
+                    <li><strong>스트레스 수준:</strong> ${collectedUserData.stress_level}점 (10점 만점)</li>
+                </ul>`;
+                document.getElementById('result_lifestyle').innerHTML = lifestyleOutput;
+
+                let generalAdviceHTML = "<ul>";
+                if (parseFloat(collectedUserData.sleep_hours) < 6.5) generalAdviceHTML += "<li><strong>수면 개선:</strong> 하루 7-8시간의 질 좋은 수면을 위해 노력해주세요. 잠들기 전 스마트폰 사용을 줄이고, 일정한 시간에 잠자리에 드는 것이 좋습니다.</li>";
+                if (collectedUserData.regular_meals && collectedUserData.regular_meals.toLowerCase().includes('불규칙적')) generalAdviceHTML += "<li><strong>규칙적인 식사:</strong> 정해진 시간에 균형 잡힌 식사를 하는 것이 소화기 건강과 신체 리듬 유지에 매우 중요합니다. 아침 식사를 거르지 않는 것이 좋습니다.</li>";
+                if (collectedUserData.exercise_freq === '거의 안함') generalAdviceHTML += "<li><strong>신체 활동 늘리기:</strong> 일상생활에서 활동량을 늘리고, 주 2-3회 가벼운 운동(산책, 스트레칭 등)부터 시작해보세요. 꾸준함이 중요합니다.</li>";
+                if (parseInt(collectedUserData.stress_level) >= 7) generalAdviceHTML += "<li><strong>스트레스 관리:</strong> 높은 스트레스는 만병의 근원입니다. 명상, 심호흡, 취미활동, 충분한 휴식 등 자신에게 맞는 해소법을 찾아 꾸준히 실천하세요.</li>";
+                
+                if (collectedUserData.other_symptoms && collectedUserData.other_symptoms.toLowerCase() !== '없음' && collectedUserData.other_symptoms.length > 2) {
+                     generalAdviceHTML += `<li><strong>기타 사항 확인:</strong> 언급해주신 '${escapeHtml(collectedUserData.other_symptoms)}'에 대해서는, 이것이 일시적인지 지속적인지, 다른 증상과 연관이 있는지 등을 고려하여 필요시 전문가와 상담하여 정확한 원인과 관리법을 알아보시는 것이 좋습니다.</li>`;
+                }
+
+                if (generalAdviceHTML === "<ul>") generalAdviceHTML = "<p>전반적으로 양호한 생활습관을 가지고 계신 것 같습니다. 앞으로도 꾸준히 건강 관리에 힘써주세요.</p>";
+                else generalAdviceHTML += "</ul>";
+                document.getElementById('result_general_advice').innerHTML = generalAdviceHTML;
+
+                let customAdviceHTML = "";
+                if (diagnosedSasangType) { 
+                    const type = diagnosedSasangType;
+                    customAdviceHTML += `<h4>${type} 환자분을 위한 맞춤 컨설팅 (요약)</h4>`;
+                    switch(type) {
+                        case "TE": customAdviceHTML += `<p><strong>태음인:</strong> 과식 주의, 유산소 운동과 근력 운동을 병행하세요. 콩, 두부, 소고기, 무, 도라지 등 섭취. 땀을 적절히 내는 것이 도움됩니다.</p>`; break;
+                        case "SE": customAdviceHTML += `<p><strong>소음인:</strong> 몸을 따뜻하게, 소화 잘되는 따뜻한 음식을 드세요. 닭고기, 생강, 인삼 등이 좋습니다. 스트레스 관리가 중요합니다.</p>`; break;
+                        case "SY": customAdviceHTML += `<p><strong>소양인:</strong> 시원한 음식, 하체 운동 권장. 돼지고기, 오이, 녹두 등. 마음을 차분히 하고 수분 섭취 충분히 하세요.</p>`; break;
+                        case "TY": customAdviceHTML += `<p><strong>태양인:</strong> 담백하고 서늘한 음식, 하체 강화. 해산물, 메밀 등. 마음 안정과 단전호흡이 권장됩니다.</p>`; break;
+                    }
+                } else {
+                     customAdviceHTML = "<p>여러 체질의 특성이 복합적이거나 정보가 부족하여, 특정 체질 맞춤 조언보다는 일반적인 건강 수칙 준수가 중요합니다.</p>";
+                }
+                document.getElementById('result_custom_advice').innerHTML = customAdviceHTML;
+
+                // 결과 페이지(step-6) 표시. sections 배열에서 step-6은 인덱스 6.
+                displayStep(6); 
+                // alert("컨설팅 결과가 준비되었습니다. 내용을 꼼꼼히 확인해주세요."); // 이제 Q&A 버튼을 누르도록 유도
+
+            } catch(e) {
+                 alert("결과 표시 중 오류: " + e.message);
+                 console.error("Error in processAndShowResults:", e, e.stack);
+            }
+        }
+        
+        // --- Q&A 챗봇 관련 함수 ---
+        function appendQnAMessage(text, sender) { /* 이전과 동일 */
+            if (!qnaChatBox) return;
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('qna-message', sender === 'user' ? 'qna-user-message' : 'qna-bot-message');
+            messageDiv.innerHTML = sender === 'bot' ? text.replace(/\n/g, '<br>') : escapeHtml(text);
+            qnaChatBox.appendChild(messageDiv);
+            qnaChatBox.scrollTop = qnaChatBox.scrollHeight;
+        }
+
+        async function handleQnAUserInput() { /* 이전과 동일 (프롬프트에 collectedUserData.other_symptoms 반영) */
+            if (!qnaUserInput || !qnaSendButton || !GEMINI_API_KEY) {
+                if (!GEMINI_API_KEY) {
+                    appendQnAMessage("죄송합니다, AI 답변 기능을 사용하려면 API 키 설정이 필요합니다. 코드 내 GEMINI_API_KEY 변수를 확인해주세요.", "bot");
+                }
+                if (qnaUserInput) qnaUserInput.disabled = false;
+                if (qnaSendButton) qnaSendButton.disabled = false;
+                return;
+            }
+            const userText = qnaUserInput.value.trim();
+            if (userText === '') return;
+
+            appendQnAMessage(userText, 'user');
+            qnaUserInput.value = '';
+            qnaUserInput.disabled = true;
+            qnaSendButton.disabled = true;
+
+            const loadingMsgEl = appendQnAMessage("AI가 답변을 준비 중입니다. 잠시만 기다려주세요...", 'bot');
+
+            try {
+                let prompt = `당신은 한의학, 사상의학, 그리고 일반 건강 상식에 대해 답변하는 AI 건강 컨설턴트입니다. 사용자의 이전 진단 정보를 참고하여 답변의 깊이를 더해주세요.\n`;
+                prompt += `[사용자 이전 진단 정보 요약]\n`;
+                prompt += `- 나이: ${collectedUserData.age || '미입력'}세, 성별: ${collectedUserData.gender === 'male' ? '남성' : (collectedUserData.gender === 'female' ? '여성' : '미입력')}\n`;
+                if (diagnosedSasangType) {
+                    prompt += `- 예비 사상 체질: ${diagnosedSasangType}\n`;
+                } else {
+                    prompt += `- 예비 사상 체질: 명확히 한 가지로 분류되지 않았거나 판단 보류\n`;
+                }
+                let symptomsForPrompt = "특별히 언급된 주요 증상 없음";
+                let collectedSymptomsForPrompt = [];
+                 if (collectedUserData.symptoms && collectedUserData.symptoms.length > 0) {
+                    collectedSymptomsForPrompt = Array.isArray(collectedUserData.symptoms) ? collectedUserData.symptoms : [collectedUserData.symptoms];
+                }
+                // --- 수정: other_symptoms를 프롬프트에 확실히 포함 ---
+                if (collectedUserData.other_symptoms && collectedUserData.other_symptoms.toLowerCase() !== '없음' && collectedUserData.other_symptoms.length > 0) {
+                    collectedSymptomsForPrompt.push(`(기타 특이사항 및 상세 우려: ${escapeHtml(collectedUserData.other_symptoms)})`);
+                }
+                if(collectedSymptomsForPrompt.length > 0) {
+                     symptomsForPrompt = collectedSymptomsForPrompt.join(', ');
+                }
+                prompt += `- 주요 호소 증상 및 기타 언급: ${symptomsForPrompt}\n`;
+                prompt += `[사용자 질문]\n"${escapeHtml(userText)}"\n\n`;
+                prompt += `[답변 가이드라인]\n1. 질문에 대해 쉽고 친절하게 한국어로 답변해주세요.\n2. 한의학적 관점과 일반 건강 상식을 균형있게 포함해주세요.\n3. 사용자의 체질이나 증상을 참고하여 답변하면 좋습니다. (예: "OOO으로 진단되신 환자분의 경우..." 또는 "OO 증상을 말씀하셨는데...")\n4. 답변은 항상 "본 답변은 일반적인 건강 정보이며, 의학적 진단이나 처방을 대체할 수 없습니다. 정확한 내용은 전문가와 상담하세요."라는 면책 조항으로 마무리해주세요.`;
+
+                const response = await fetch(GEMINI_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+
+                if (loadingMsgEl && loadingMsgEl.parentElement) loadingMsgEl.remove();
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error ? errorData.error.message : `API 요청 실패 (상태: ${response.status})`);
+                }
+
+                const responseData = await response.json();
+                if (responseData.candidates && responseData.candidates[0] && responseData.candidates[0].content && responseData.candidates[0].content.parts && responseData.candidates[0].content.parts[0]) {
+                    appendQnAMessage(responseData.candidates[0].content.parts[0].text, 'bot');
+                } else if (responseData.promptFeedback && responseData.promptFeedback.blockReason) {
+                     appendQnAMessage(`요청하신 내용에 답변할 수 없습니다. (사유: ${responseData.promptFeedback.blockReason})`, 'bot');
+                } else {
+                    appendQnAMessage("죄송합니다. AI로부터 예상치 못한 응답을 받았습니다. 다시 시도해주세요.", 'bot');
+                }
+
+            } catch (error) {
+                console.error("Q&A API Error:", error);
+                if (loadingMsgEl && loadingMsgEl.parentElement) loadingMsgEl.remove();
+                appendQnAMessage("죄송합니다. AI 답변을 가져오는 중 오류가 발생했습니다: " + error.message, 'bot');
+            } finally {
+                if(qnaUserInput) qnaUserInput.disabled = false;
+                if(qnaSendButton) qnaSendButton.disabled = false;
+                if(qnaUserInput) qnaUserInput.focus();
+            }
+        }
+
+        function restartConsult() { /* 이전과 동일 */
+            alert('건강 컨설팅을 처음부터 다시 시작합니다. 입력하신 내용은 초기화됩니다.');
+            try {
+                document.getElementById('gender').value = '';
+                document.getElementById('age').value = '';
+                sasangQuestionIds.forEach(id => {
+                    const radios = document.querySelectorAll(`input[name="${id}"]`);
+                    if (radios) radios.forEach(radio => radio.checked = false);
+                });
+                document.querySelectorAll('input[name="symptom"]').forEach(cb => cb.checked = false);
+                const otherSymptomsEl = document.getElementById('other_symptoms');
+                if (otherSymptomsEl) otherSymptomsEl.value = '';
+                const sleepSliderEl = document.getElementById('sleep_hours');
+                const sleepDispEl = document.getElementById('sleep_value_display');
+                if(sleepSliderEl && sleepDispEl) { sleepSliderEl.value = 7; sleepDispEl.textContent = '7';}
+                document.querySelectorAll('input[name="regular_meals"]').forEach(radio => radio.checked = false);
+                document.querySelectorAll('input[name="exercise_freq"]').forEach(radio => radio.checked = false);
+                const stressSliderEl = document.getElementById('stress_level');
+                const stressDispEl = document.getElementById('stress_value_display');
+                if(stressSliderEl && stressDispEl) { stressSliderEl.value = 5; stressDispEl.textContent = '5';}
+                if (qnaChatBox) qnaChatBox.innerHTML = ''; 
+                diagnosedSasangType = null; 
+                collectedUserData = {}; 
+                displayStep(0); 
+            } catch (e) { alert("다시 시작 중 오류: " + e.message); console.error(e); }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                console.log("DOM fully loaded. Initializing application.");
+                
+                qnaChatbotSection = document.getElementById('qna-chatbot-interface'); // Q&A 전체 섹션이 아니라 내부 컨테이너
+                qnaChatBox = document.getElementById('qnaChatBox');
+                qnaUserInput = document.getElementById('qnaUserInput');
+                qnaSendButton = document.getElementById('qnaSendButton');
+                goToQnAPageButton = document.getElementById('goToQnAPageButton');
+
+                if (qnaSendButton) qnaSendButton.addEventListener('click', handleQnAUserInput);
+                if (qnaUserInput) qnaUserInput.addEventListener('keypress', function(event) {
+                    if (event.key === 'Enter' && !event.shiftKey) { 
+                        event.preventDefault(); 
+                        handleQnAUserInput();
+                    }
+                });
+                if(goToQnAPageButton) {
+                    goToQnAPageButton.addEventListener('click', function() {
+                        // sections 배열에서 step-7은 인덱스 7 (0부터 시작하므로 8번째 요소)
+                        displayStep(7); // Q&A 전용 페이지(step-7)로 이동
+                        if (qnaChatBox && qnaChatBox.innerHTML.trim() === "") { 
+                           appendQnAMessage("AI 건강 Q&A 상담실에 오신 것을 환영합니다. 컨설팅 결과를 바탕으로 궁금한 점이나 다른 건강 관련 질문을 편하게 해주세요. (예: 태음인에게 좋은 차는 무엇인가요?)", 'bot');
+                        }
+                    });
+                }
+                
+                const sleepSliderEl = document.getElementById('sleep_hours');
+                const sleepDispEl = document.getElementById('sleep_value_display');
+                if(sleepSliderEl && sleepDispEl) sleepDispEl.textContent = sleepSliderEl.value;
+
+                const stressSliderEl = document.getElementById('stress_level');
+                const stressDispEl = document.getElementById('stress_value_display');
+                if(stressSliderEl && stressDispEl) stressDispEl.textContent = stressSliderEl.value;
+                
+                displayStep(0); 
+                alert("AI 한의원 건강 컨설팅 페이지가 준비되었습니다. 안내에 따라 첫 번째 정보부터 입력해주세요.");
+            } catch (e) {
+                alert("페이지 초기화 중 오류: " + e.message);
+                console.error("Error in DOMContentLoaded:", e, e.stack);
+            }
+        });
+
+        console.log("SCRIPT END: Main logic parsed.");
+
+    } catch (e) {
+        alert("치명적인 JavaScript 초기화 오류: " + e.message + "\n콘솔을 확인하고, 파일 저장 및 브라우저 상태를 점검해주세요.");
+        console.error("FATAL SCRIPT ERROR (outermost try-catch):", e, e.stack);
+    }
+    </script>
+</body>
+</html>
